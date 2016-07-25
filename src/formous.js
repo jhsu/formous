@@ -2,7 +2,7 @@
 
 import React, { Component } from 'react';
 import prebind from 'meteor-react-prebind';
-import { Map, fromJS } from 'immutable';
+import { Map } from 'immutable';
 
 import type { TestType } from './types';
 import runChecks, { warn } from './dx';
@@ -32,7 +32,7 @@ const Formous = (options: Object): ReactClass => {
     }
 
     componentWillMount() {
-      const updatedFields = {};
+      const updatedFields = Map();
 
       // Deprecation warning
       if (!options.fields) {
@@ -62,17 +62,15 @@ const Formous = (options: Object): ReactClass => {
         const testResults: Array<TestType> = this.testField(fieldSpec, '',
           true);
 
-        updatedFields[fieldName] = {
+        updatedFields.set(fieldName, {
           events,
           valid: allTestsPassed(testResults),
           value: this.state.fields.getIn([fieldName, 'value']) || '',
-        };
+        });
       }
 
-      const fields = fromJS(updatedFields);
-
       this.setState({
-        fields,
+        fields: updatedFields,
         form: {
           ...this.state.form,
           valid: this.isFormValid(fields),
