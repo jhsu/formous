@@ -32,8 +32,6 @@ const Formous = (options: Object): ReactClass => {
     }
 
     componentWillMount() {
-      const updatedFields = Map();
-
       // Deprecation warning
       if (!options.fields) {
         warn(false, 'Put fields in their own object. See details: ' +
@@ -43,6 +41,8 @@ const Formous = (options: Object): ReactClass => {
 
       // Syntax checking.. for a positive developer experience!
       runChecks(options);
+
+      let updatedFields = Map();
 
       // Loop through each of the fields passed in
       for (const fieldName: string in options.fields) {
@@ -62,18 +62,18 @@ const Formous = (options: Object): ReactClass => {
         const testResults: Array<TestType> = this.testField(fieldSpec, '',
           true);
 
-        updatedFields.set(fieldName, {
+        updatedFields = updatedFields.set(fieldName, Map({
           events,
           valid: allTestsPassed(testResults),
           value: this.state.fields.getIn([fieldName, 'value']) || '',
-        });
+        }));
       }
 
       this.setState({
         fields: updatedFields,
         form: {
           ...this.state.form,
-          valid: this.isFormValid(fields),
+          valid: this.isFormValid(updatedFields),
         },
       });
     }
@@ -91,23 +91,24 @@ const Formous = (options: Object): ReactClass => {
 
     isFormValid(fields: Object, options: ?{ excludeField: string }): boolean {
       const excludeField: ?string = options && options.excludeField;
-      const stateFields: Object = fields.toJS();
-      const examineFields: Array<string> = Object.keys(stateFields)
+      const fieldSeq: Object = fields.keySeq();
+      const examineFields: Object = fieldSeq
         .filter((fieldName: string) => fieldName !== excludeField);
 
-      if (examineFields.length === 0) return true;
+      if (examineFields.count() === 0) return true;
 
-      const formValid = Object.keys(stateFields)
+      const formValid = fieldSeq
         .filter((fieldName: string) => fieldName !== excludeField)
-        .map((fieldName: string) => stateFields[fieldName])
-        .reduce((a: any, b: Object) => {
-          return (typeof a === 'object' ? a.valid : a) && b.valid;
-        });
+        .map((fieldName: string) => fields.get(fieldName, {}))
+        .reduce((a: any, b: Object): ?boolean => {
+          return (typeof a === 'object' ? a.get('valid') : a) && b.get('valid');
+        }, true);
 
       /*
        * If we only have one field, .reduce() will have returned an object, not
        * a boolean.
        */
+
       return typeof formValid === 'boolean' ? formValid : formValid.valid;
     }
 
@@ -115,12 +116,12 @@ const Formous = (options: Object): ReactClass => {
       failProps: ?Object,
       quietly: boolean,
     }) {
-      const fields = this.state.fields.mergeDeep({
+      const fields = this.state.fields.mergeDeep(Map({
         [fieldName]: {
           failProps: options.quietly ? undefined : options.failProps,
           valid,
         },
-      });
+      }));
 
       this.setState({
         fields,
@@ -165,7 +166,8 @@ const Formous = (options: Object): ReactClass => {
     setDefaultValues(defaultData: Object) {
       // Prevent settings defaults twice
       if (!this.defaultsSet) {
-        const defaults: Object = {};
+        let defaults: Object = Map();
+        const fallbackValue: Object = Map();
 
         for (const fieldName: string in defaultData) {
           const field: Object = options.fields[fieldName];
@@ -179,13 +181,15 @@ const Formous = (options: Object): ReactClass => {
             testResults = [];
           }
 
-          defaults[fieldName] = {
-            valid: allTestsPassed(testResults),
-            value: defaultData[fieldName],
-          };
+          defaults = defaults.set(fieldName,
+            this.state.fields.get(fieldName, fallbackValue).merge(Map({
+              valid: allTestsPassed(testResults),
+              value: defaultData[fieldName],
+            }))
+          );
         }
 
-        const fields = this.state.fields.mergeDeep(defaults);
+        const fields = this.state.fields.merge(defaults);
 
         this.setState({
           fields,
