@@ -18,6 +18,14 @@ function createFormComponent(options) {
   return Formous(options)(Component);
 }
 
+const requiredField = {
+  critical: true,
+  failProps: { error: 'Field is required' },
+  test(value) {
+    return value !== '';
+  },
+};
+
 describe('Formous', () => {
   it('has an untouched valid form when submitted', (done) => {
     const options = {
@@ -115,6 +123,48 @@ describe('Formous', () => {
       done();
     }} />);
     wrapper.find('button').first().simulate('click');
+  });
+
+  it('should not show errors for untouched fields onBlur', () => {
+    const options = {
+      fields: {
+        name: {
+          tests: [
+            requiredField,
+          ],
+        },
+        email: {
+          tests: [
+            requiredField,
+          ],
+        },
+      },
+    };
+    const Component = React.createClass({
+      render() {
+        return (
+          <div>
+            <input onBlur={this.props.fields.name.events.onBlur} />
+            <p className="name-error">
+              {this.props.fields.name.failProps &&
+                this.props.fields.name.failProps.error}
+            </p>
+            <p className="email-error">
+              {this.props.fields.email.failProps &&
+                this.props.fields.email.failProps.error}
+            </p>
+            <button
+              onClick={this.props.formSubmit(this.props.onSubmit)}>
+              submit
+            </button>
+          </div>
+        );
+      },
+    });
+    const Form = Formous(options)(Component);
+    const wrapper = mount(<Form />);
+    wrapper.find('input').first().props().onBlur({ event: {} });
+    expect(wrapper.find('.email-error').first().text()).to.equal('');
   });
 
   describe('updateFormValues', () => {

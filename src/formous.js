@@ -69,7 +69,10 @@ const Formous = (options: Object): ReactClass<*> => {
 
       const validatedFields = dirtyFields.reduce(
         (updated: Object, field: Object, name: string) => {
-          return this.onChangeField(field, name, updated);
+          if (field.get('dirty')) {
+            return this.onChangeField(field, name, updated);
+          }
+          return updated;
         }, fields);
 
       return {
